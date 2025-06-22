@@ -116,19 +116,68 @@ def render_time_to_grid(timestr):
             x += 1
     return grid
 
+
+def animate_grid_transition(old_grid, new_grid, direction="left", steps=8, delay=0.05):
+    """
+    Animate transition from old_grid to new_grid by sliding pixels.
+    direction: "left", "right", "up", or "down"
+    steps: number of animation frames
+    delay: time between frames (seconds)
+    """
+    GRID_SIZE = len(old_grid)
+    url = "http://localhost:5000/set_grid"
+
+    for step in range(1, steps + 1):
+        frame = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        for y in range(GRID_SIZE):
+            for x in range(GRID_SIZE):
+                if direction == "left":
+                    split = int(GRID_SIZE * step / steps)
+                    if x < GRID_SIZE - split:
+                        frame[y][x] = old_grid[y][x + split]
+                    else:
+                        frame[y][x] = new_grid[y][x - (GRID_SIZE - split)]
+                elif direction == "right":
+                    split = int(GRID_SIZE * step / steps)
+                    if x >= split:
+                        frame[y][x] = old_grid[y][x - split]
+                    else:
+                        frame[y][x] = new_grid[y][x + (GRID_SIZE - split)]
+                elif direction == "up":
+                    split = int(GRID_SIZE * step / steps)
+                    if y < GRID_SIZE - split:
+                        frame[y][x] = old_grid[y + split][x]
+                    else:
+                        frame[y][x] = new_grid[y - (GRID_SIZE - split)][x]
+                elif direction == "down":
+                    split = int(GRID_SIZE * step / steps)
+                    if y >= split:
+                        frame[y][x] = old_grid[y - split][x]
+                    else:
+                        frame[y][x] = new_grid[y + (GRID_SIZE - split)][x]
+                else:
+                    frame[y][x] = new_grid[y][x]  # fallback
+        requests.post(url, json={"pixels": frame})
+        time.sleep(delay)
+    # Ensure final grid is set
+    requests.post(url, json={"pixels": new_grid})
+
 def send_grid(grid):
     url = "http://localhost:5000/set_grid"
     data = {"pixels": grid}
     requests.post(url, json=data)
 
 def main():
-    while True:
-        now = datetime.now()
-        timestr = now.strftime("%H:%M")
-        grid = render_time_to_grid(timestr)
-        send_grid(grid)
+    # while True:
+    now = datetime.now()
+    timestr = now.strftime("%H:%M")
+    grid = render_time_to_grid(timestr)
+    send_grid(grid)
         # Update every second, but only send if minute/second changed for less flicker
-        time.sleep(1)
+    # time.sleep(2)
+    new_grid = [[PIXEL_SECONDARY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+
+    animate_grid_transition(grid, new_grid, "left", 2, 0.5)
 
 if __name__ == "__main__":
     main()
